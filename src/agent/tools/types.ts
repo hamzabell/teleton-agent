@@ -7,8 +7,12 @@ import type { Config } from "../../config/schema.js";
  * Context provided to tool executors
  */
 export interface ToolContext {
-  /** Telegram bridge for sending messages, reactions, etc. */
-  bridge: TelegramBridge;
+  /** Optional Telegram bridge for sending messages (legacy support) */
+  bridge?: TelegramBridge;
+  /** Optional notification service for headless mode */
+  notificationService?: {
+    sendUpdate(chatId: string, text: string): Promise<any>;
+  };
   /** Database instance for storage */
   db: Database.Database;
   /** Current chat ID where the tool is being executed */
@@ -19,6 +23,8 @@ export interface ToolContext {
   isGroup: boolean;
   /** Full config for accessing API key, model, etc. (optional) */
   config?: Config;
+  /** Optional wallet mnemonic for multi-tenant support */
+  walletMnemonic?: string[];
 }
 
 /**

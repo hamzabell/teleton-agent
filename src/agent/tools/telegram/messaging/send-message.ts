@@ -48,20 +48,34 @@ export const telegramSendMessageExecutor: ToolExecutor<SendMessageParams> = asyn
   try {
     const { chatId, text, replyToId } = params;
 
-    // Send message via Telegram bridge
-    const sentMessage = await context.bridge.sendMessage({
-      chatId,
-      text,
-      replyToId,
-    });
+    if (context.bridge) {
+      // Send message via Telegram bridge (Legacy/User account)
+      const sentMessage = await context.bridge.sendMessage({
+        chatId,
+        text,
+        replyToId,
+      });
 
-    return {
-      success: true,
-      data: {
-        messageId: sentMessage?.id ?? null,
-        date: sentMessage?.date ?? null,
-      },
-    };
+      return {
+        success: true,
+        data: {
+          messageId: sentMessage?.id ?? null,
+          date: sentMessage?.date ?? null,
+        },
+      };
+    } else if (context.notificationService) {
+      // Send message via SaaS Bot service (Headless)
+      const result = await context.notificationService.sendUpdate(chatId, text);
+      return {
+        success: true,
+        data: result,
+      };
+    } else {
+      return {
+        success: false,
+        error: "No Telegram bridge or notification service available.",
+      };
+    }
   } catch (error) {
     log.error({ err: error }, "Error sending Telegram message");
     return {

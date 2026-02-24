@@ -37,11 +37,11 @@ export const tonMyTransactionsExecutor: ToolExecutor<MyTransactionsParams> = asy
   try {
     const { limit = 10 } = params;
 
-    const walletData = loadWallet();
+    const walletData = await loadWallet(context.walletMnemonic);
     if (!walletData) {
       return {
         success: false,
-        error: "Wallet not initialized. Contact admin to generate wallet.",
+        error: "Wallet not initialized. Provide a mnemonic in the execution context.",
       };
     }
 

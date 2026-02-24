@@ -39,11 +39,11 @@ export const tonSendExecutor: ToolExecutor<SendParams> = async (
   try {
     const { to, amount, comment } = params;
 
-    const walletData = loadWallet();
+    const walletData = await loadWallet(context.walletMnemonic);
     if (!walletData) {
       return {
         success: false,
-        error: "Wallet not initialized. Contact admin to generate wallet.",
+        error: "Wallet not initialized. Provide a mnemonic in the execution context.",
       };
     }
 
@@ -56,7 +56,7 @@ export const tonSendExecutor: ToolExecutor<SendParams> = async (
       };
     }
 
-    const keyPair = await getKeyPair();
+    const keyPair = await getKeyPair(context.walletMnemonic);
     if (!keyPair) {
       return { success: false, error: "Wallet key derivation failed." };
     }

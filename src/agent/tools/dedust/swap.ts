@@ -54,11 +54,11 @@ export const dedustSwapExecutor: ToolExecutor<DedustSwapParams> = async (
   try {
     const { from_asset, to_asset, amount, pool_type = "volatile", slippage = 0.01 } = params;
 
-    const walletData = loadWallet();
+    const walletData = await loadWallet(context.walletMnemonic);
     if (!walletData) {
       return {
         success: false,
-        error: "Wallet not initialized. Contact admin to generate wallet.",
+        error: "Wallet not initialized. Provide a mnemonic in the execution context.",
       };
     }
 
@@ -131,7 +131,7 @@ export const dedustSwapExecutor: ToolExecutor<DedustSwapParams> = async (
     const minAmountOut = amountOut - (amountOut * BigInt(Math.floor(slippage * 10000))) / 10000n;
 
     // Prepare wallet and sender
-    const keyPair = await getKeyPair();
+    const keyPair = await getKeyPair(context.walletMnemonic);
     if (!keyPair) {
       return { success: false, error: "Wallet key derivation failed." };
     }

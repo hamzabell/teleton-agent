@@ -13,7 +13,7 @@ export interface SendTonParams {
   bounce?: boolean;
 }
 
-export async function sendTon(params: SendTonParams): Promise<string | null> {
+export async function sendTon(params: SendTonParams, mnemonic?: string[]): Promise<string | null> {
   try {
     const { toAddress, amount, comment = "", bounce = false } = params;
 
@@ -30,7 +30,7 @@ export async function sendTon(params: SendTonParams): Promise<string | null> {
       return null;
     }
 
-    const keyPair = await getKeyPair();
+    const keyPair = await getKeyPair(mnemonic);
     if (!keyPair) {
       log.error("Wallet not initialized");
       return null;

@@ -14,9 +14,34 @@
 npm install @teleton-agent/sdk
 ```
 
-The package ships type definitions and the `PluginSDKError` class. It has an optional peer dependency on `better-sqlite3` (used only if your plugin needs a database).
+The package ships type definitions and the `PluginSDKError` class. It also provides the programmatic interface for the **Headless Teleton Agent**.
 
-## Quick Start
+## Headless Agent
+
+You can embed the Teleton Agent in your own applications (e.g., Discord bots, web apps, or backend services) without requiring a Telegram connection.
+
+```typescript
+import { HeadlessTeletonAgent } from "@teleton-agent/sdk";
+
+// Initialize the agent with your LLM configuration
+const agent = new HeadlessTeletonAgent({
+  agent: {
+    provider: "anthropic",
+    model: "claude-3-5-sonnet-20240620",
+    api_key: process.env.ANTHROPIC_API_KEY,
+  },
+  workDir: "./agent-data",
+});
+
+// Process a message through the agentic loop (it will use all built-in tools)
+const response = await agent.process("user-123", "What is my TON balance?");
+
+console.log(response.content);
+// If it used tools:
+console.log(response.toolCalls);
+```
+
+## Plugin SDK
 
 A Teleton plugin is a module that exports a `tools` function and, optionally, `manifest`, `start`, and `migrate`.
 

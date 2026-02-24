@@ -1,7 +1,7 @@
 {
   "name": "@teleton-agent/sdk",
   "version": "1.0.0",
-  "description": "Plugin SDK types for Teleton Agent — TypeScript autocompletion and type safety for plugin developers",
+  "description": "Headless Teleton Agent SDK — Embeddable AI agent for Telegram and TON with full tool support and TypeScript autocompletion",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

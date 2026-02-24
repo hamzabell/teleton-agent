@@ -16,9 +16,6 @@ const WALLET_FILE = join(TELETON_ROOT, "wallet.json");
 /** Cached wallet data (invalidated on saveWallet) */
 let _walletCache: WalletData | null | undefined; // undefined = not yet loaded
 
-/** Cached key pair derived from mnemonic */
-let _keyPairCache: { publicKey: Buffer; secretKey: Buffer } | null = null;
-
 export interface WalletData {
   version: "w5r1";
   address: string;
@@ -31,13 +28,8 @@ export interface WalletData {
  * Generate a new TON wallet (W5R1)
  */
 export async function generateWallet(): Promise<WalletData> {
-  // Generate new mnemonic (24 words)
   const mnemonic = await mnemonicNew(24);
-
-  // Derive keys from mnemonic
   const keyPair = await mnemonicToPrivateKey(mnemonic);
-
-  // Create W5R1 wallet contract
   const wallet = WalletContractV5R1.create({
     workchain: 0,
     publicKey: keyPair.publicKey,
@@ -55,7 +47,7 @@ export async function generateWallet(): Promise<WalletData> {
 }
 
 /**
- * Save wallet to ~/.teleton/wallet.json
+ * Save wallet to file
  */
 export function saveWallet(wallet: WalletData): void {
   const dir = dirname(WALLET_FILE);
@@ -64,16 +56,31 @@ export function saveWallet(wallet: WalletData): void {
   }
 
   writeFileSync(WALLET_FILE, JSON.stringify(wallet, null, 2), { encoding: "utf-8", mode: 0o600 });
-
-  // Invalidate caches so next loadWallet()/getKeyPair() re-reads
-  _walletCache = undefined;
-  _keyPairCache = null;
+  _walletCache = wallet;
 }
 
 /**
- * Load wallet from ~/.teleton/wallet.json (cached after first read)
+ * Load wallet. Priority:
+ * 1. Provided mnemonic (in-memory, multi-tenant)
+ * 2. Cached wallet
+ * 3. Local wallet.json file
  */
-export function loadWallet(): WalletData | null {
+export async function loadWallet(mnemonic?: string[]): Promise<WalletData | null> {
+  if (mnemonic) {
+    const keyPair = await mnemonicToPrivateKey(mnemonic);
+    const wallet = WalletContractV5R1.create({
+      workchain: 0,
+      publicKey: keyPair.publicKey,
+    });
+    return {
+      version: "w5r1",
+      address: wallet.address.toString({ bounceable: true, testOnly: false }),
+      publicKey: keyPair.publicKey.toString("hex"),
+      mnemonic,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   if (_walletCache !== undefined) return _walletCache;
 
   if (!existsSync(WALLET_FILE)) {
@@ -84,23 +91,37 @@ export function loadWallet(): WalletData | null {
   try {
     const content = readFileSync(WALLET_FILE, "utf-8");
     const parsed = JSON.parse(content);
-    if (!parsed.mnemonic || !Array.isArray(parsed.mnemonic) || parsed.mnemonic.length !== 24) {
-      throw new Error("Invalid wallet.json: mnemonic must be a 24-word array");
-    }
     _walletCache = parsed as WalletData;
     return _walletCache;
   } catch (error) {
-    log.error({ err: error }, "Failed to load wallet");
+    log.error({ err: error }, "Failed to load wallet from file");
     _walletCache = null;
     return null;
   }
 }
 
 /**
- * Check if wallet exists
+ * Get KeyPair. Priority:
+ * 1. Provided mnemonic
+ * 2. Mnemonic from loaded wallet
  */
-export function walletExists(): boolean {
-  return existsSync(WALLET_FILE);
+export async function getKeyPair(mnemonic?: string[]): Promise<{ publicKey: Buffer; secretKey: Buffer } | null> {
+  if (mnemonic) {
+    return await mnemonicToPrivateKey(mnemonic);
+  }
+
+  const wallet = await loadWallet();
+  if (!wallet) return null;
+
+  return await mnemonicToPrivateKey(wallet.mnemonic);
+}
+
+/**
+ * Get wallet address
+ */
+export async function getWalletAddress(mnemonic?: string[]): Promise<string | null> {
+  const wallet = await loadWallet(mnemonic);
+  return wallet?.address || null;
 }
 
 /**
@@ -109,47 +130,22 @@ export function walletExists(): boolean {
 export async function importWallet(mnemonic: string[]): Promise<WalletData> {
   const valid = await mnemonicValidate(mnemonic);
   if (!valid) {
-    throw new Error("Invalid mnemonic: words do not form a valid TON seed phrase");
+    throw new Error("Invalid mnemonic");
   }
 
   const keyPair = await mnemonicToPrivateKey(mnemonic);
-
   const wallet = WalletContractV5R1.create({
     workchain: 0,
     publicKey: keyPair.publicKey,
   });
 
-  const address = wallet.address.toString({ bounceable: true, testOnly: false });
-
   return {
     version: "w5r1",
-    address,
+    address: wallet.address.toString({ bounceable: true, testOnly: false }),
     publicKey: keyPair.publicKey.toString("hex"),
     mnemonic,
     createdAt: new Date().toISOString(),
   };
-}
-
-/**
- * Get wallet address
- */
-export function getWalletAddress(): string | null {
-  const wallet = loadWallet();
-  return wallet?.address || null;
-}
-
-/**
- * Get cached KeyPair (derives from mnemonic once, then reuses).
- * Returns null if no wallet is configured.
- */
-export async function getKeyPair(): Promise<{ publicKey: Buffer; secretKey: Buffer } | null> {
-  if (_keyPairCache) return _keyPairCache;
-
-  const wallet = loadWallet();
-  if (!wallet) return null;
-
-  _keyPairCache = await mnemonicToPrivateKey(wallet.mnemonic);
-  return _keyPairCache;
 }
 
 /**
@@ -160,21 +156,14 @@ export async function getWalletBalance(address: string): Promise<{
   balanceNano: string;
 } | null> {
   try {
-    // Get decentralized endpoint from orbs network (no rate limits)
     const endpoint = await getCachedHttpEndpoint();
-
     const client = new TonClient({ endpoint });
-
-    // Import Address from @ton/core
     const { Address } = await import("@ton/core");
     const addressObj = Address.parse(address);
 
-    // Get balance
     const balance = await client.getBalance(addressObj);
-    const balanceFormatted = fromNano(balance);
-
     return {
-      balance: balanceFormatted,
+      balance: fromNano(balance),
       balanceNano: balance.toString(),
     };
   } catch (error) {
@@ -188,23 +177,19 @@ const TON_PRICE_CACHE_TTL_MS = 30_000;
 let _tonPriceCache: { usd: number; source: string; timestamp: number } | null = null;
 
 /**
- * Get TON/USD price from TonAPI (primary) with CoinGecko fallback
- * Results cached for 30s to reduce API calls
+ * Get TON/USD price
  */
 export async function getTonPrice(): Promise<{
   usd: number;
   source: string;
   timestamp: number;
 } | null> {
-  // Return cached value if fresh
   if (_tonPriceCache && Date.now() - _tonPriceCache.timestamp < TON_PRICE_CACHE_TTL_MS) {
     return { ..._tonPriceCache };
   }
 
-  // Primary: TonAPI /v2/rates (uses configured API key if available)
   try {
     const response = await tonapiFetch(`/rates?tokens=ton&currencies=usd`);
-
     if (response.ok) {
       const data = await response.json();
       const price = data?.rates?.TON?.prices?.USD;
@@ -213,25 +198,19 @@ export async function getTonPrice(): Promise<{
         return _tonPriceCache;
       }
     }
-  } catch {
-    // Fall through to CoinGecko
-  }
+  } catch {}
 
-  // Fallback: CoinGecko
   try {
     const response = await fetchWithTimeout(
       `${COINGECKO_API_URL}/simple/price?ids=the-open-network&vs_currencies=usd`
     );
-
-    if (!response.ok) {
-      throw new Error(`CoinGecko API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const price = data["the-open-network"]?.usd;
-    if (typeof price === "number" && price > 0) {
-      _tonPriceCache = { usd: price, source: "CoinGecko", timestamp: Date.now() };
-      return _tonPriceCache;
+    if (response.ok) {
+      const data = await response.json();
+      const price = data["the-open-network"]?.usd;
+      if (typeof price === "number" && price > 0) {
+        _tonPriceCache = { usd: price, source: "CoinGecko", timestamp: Date.now() };
+        return _tonPriceCache;
+      }
     }
   } catch (error) {
     log.error({ err: error }, "Failed to get TON price");

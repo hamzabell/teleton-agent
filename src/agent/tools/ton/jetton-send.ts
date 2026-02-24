@@ -47,11 +47,11 @@ export const jettonSendExecutor: ToolExecutor<JettonSendParams> = async (
   try {
     const { jetton_address, to, amount, comment } = params;
 
-    const walletData = loadWallet();
+    const walletData = await loadWallet(context.walletMnemonic);
     if (!walletData) {
       return {
         success: false,
-        error: "Wallet not initialized. Contact admin to generate wallet.",
+        error: "Wallet not initialized. Provide a mnemonic in the execution context.",
       };
     }
 
@@ -131,7 +131,7 @@ export const jettonSendExecutor: ToolExecutor<JettonSendParams> = async (
       .storeMaybeRef(comment ? forwardPayload : null) // forward_payload
       .endCell();
 
-    const keyPair = await getKeyPair();
+    const keyPair = await getKeyPair(context.walletMnemonic);
     if (!keyPair) {
       return { success: false, error: "Wallet key derivation failed." };
     }

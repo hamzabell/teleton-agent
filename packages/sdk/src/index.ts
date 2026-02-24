@@ -34,6 +34,9 @@
 export type {
   // Root SDK
   PluginSDK,
+  // Headless Agent
+  HeadlessTeletonAgent,
+  HeadlessTeletonAgentOptions,
   // TON
   TonSDK,
   TonBalance,

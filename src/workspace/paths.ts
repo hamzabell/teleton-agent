@@ -7,33 +7,39 @@ import { homedir } from "os";
  * Root directory for Teleton (agent CANNOT access this directly)
  * Configurable via TELETON_HOME env var (default: ~/.teleton)
  */
-export const TELETON_ROOT = process.env.TELETON_HOME || join(homedir(), ".teleton");
+export function getTeletonRoot(): string {
+  return process.env.TELETON_HOME || join(homedir(), ".teleton");
+}
+
+export const TELETON_ROOT = getTeletonRoot(); // Fallback for legacy code
 
 /**
  * Workspace directory - ONLY location agent can access
  */
-export const WORKSPACE_ROOT = join(TELETON_ROOT, "workspace");
+export function getWorkspaceRoot(): string {
+  return join(getTeletonRoot(), "workspace");
+}
+
+export const WORKSPACE_ROOT = getWorkspaceRoot(); // Fallback for legacy code
 
 /**
  * Workspace subdirectories
  */
 export const WORKSPACE_PATHS = {
-  // Root files
-  SOUL: join(WORKSPACE_ROOT, "SOUL.md"),
-  MEMORY: join(WORKSPACE_ROOT, "MEMORY.md"),
-  IDENTITY: join(WORKSPACE_ROOT, "IDENTITY.md"),
-  USER: join(WORKSPACE_ROOT, "USER.md"),
-  STRATEGY: join(WORKSPACE_ROOT, "STRATEGY.md"),
-  SECURITY: join(WORKSPACE_ROOT, "SECURITY.md"),
+  get SOUL() { return join(getWorkspaceRoot(), "SOUL.md"); },
+  get MEMORY() { return join(getWorkspaceRoot(), "MEMORY.md"); },
+  get IDENTITY() { return join(getWorkspaceRoot(), "IDENTITY.md"); },
+  get USER() { return join(getWorkspaceRoot(), "USER.md"); },
+  get STRATEGY() { return join(getWorkspaceRoot(), "STRATEGY.md"); },
+  get SECURITY() { return join(getWorkspaceRoot(), "SECURITY.md"); },
 
-  // Directories
-  MEMORY_DIR: join(WORKSPACE_ROOT, "memory"),
-  DOWNLOADS_DIR: join(WORKSPACE_ROOT, "downloads"),
-  UPLOADS_DIR: join(WORKSPACE_ROOT, "uploads"),
-  TEMP_DIR: join(WORKSPACE_ROOT, "temp"),
-  MEMES_DIR: join(WORKSPACE_ROOT, "memes"),
-  PLUGINS_DIR: join(TELETON_ROOT, "plugins"),
-} as const;
+  get MEMORY_DIR() { return join(getWorkspaceRoot(), "memory"); },
+  get DOWNLOADS_DIR() { return join(getWorkspaceRoot(), "downloads"); },
+  get UPLOADS_DIR() { return join(getWorkspaceRoot(), "uploads"); },
+  get TEMP_DIR() { return join(getWorkspaceRoot(), "temp"); },
+  get MEMES_DIR() { return join(getWorkspaceRoot(), "memes"); },
+  get PLUGINS_DIR() { return join(getTeletonRoot(), "plugins"); },
+};
 
 /**
  * Allowed file extensions for different operations

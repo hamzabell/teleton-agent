@@ -1174,6 +1174,53 @@ export interface PluginManifest {
   secrets?: Record<string, SecretDeclaration>;
 }
 
+// ─── Headless Agent Types ───────────────────────────────────────
+
+/**
+ * Configuration for the Headless Teleton Agent.
+ * Allows overriding default agent settings and specifying the work directory.
+ */
+export interface HeadlessTeletonAgentOptions {
+  /** 
+   * Complete or partial agent configuration.
+   * Allows specifying provider ("anthropic", "openai", etc.), model, and API key.
+   */
+  agent?: Record<string, unknown>;
+  /** Complete application config. If provided, 'agent' option overrides config.agent. */
+  config?: Record<string, unknown>;
+  /** Optional soul/personality prompt for the agent. */
+  soul?: string;
+  /** Directory for memory and storage (e.g., './data'). */
+  workDir: string;
+}
+
+/**
+ * HeadlessTeletonAgent provides a programmatic interface to the Teleton Agent
+ * without requiring a Telegram connection. It's suitable for embedding
+ * in other applications, testing, or building custom interfaces.
+ */
+export interface HeadlessTeletonAgent {
+  /**
+   * Process a message through the agent.
+   * 
+   * @param chatId - A unique identifier for the conversation
+   * @param message - The user's input text
+   * @param context - Optional context like wallet mnemonics or sender ID
+   * @returns The agent's response including text and tool calls
+   */
+  process(
+    chatId: string, 
+    message: string, 
+    context?: { walletMnemonic?: string[], senderId?: number }
+  ): Promise<{
+    content: string;
+    toolCalls?: Array<{
+      name: string;
+      input: Record<string, unknown>;
+    }>;
+  }>;
+}
+
 // ─── Root SDK ────────────────────────────────────────────────────
 
 /**

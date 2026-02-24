@@ -16,12 +16,12 @@ export const tonGetBalanceExecutor: ToolExecutor<{}> = async (
   context
 ): Promise<ToolResult> => {
   try {
-    const address = getWalletAddress();
+    const address = await getWalletAddress(context.walletMnemonic);
 
     if (!address) {
       return {
         success: false,
-        error: "Wallet not initialized. Contact admin to generate wallet.",
+        error: "Wallet not initialized. Provide a mnemonic in the execution context.",
       };
     }
 
