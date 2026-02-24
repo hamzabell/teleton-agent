@@ -11,31 +11,28 @@ const external = [
   ...Object.keys(pkg.optionalDependencies ?? {}),
 ];
 
-// Clean dist/ but preserve dist/web/ (Vite frontend build)
-function cleanDistPreserveWeb() {
+// Clean dist/
+function cleanDist() {
   try {
-    for (const entry of readdirSync("dist")) {
-      if (entry === "web") continue;
-      rmSync(join("dist", entry), { recursive: true, force: true });
-    }
+    rmSync("dist", { recursive: true, force: true });
   } catch {
     // dist/ doesn't exist yet — nothing to clean
   }
 }
 
-cleanDistPreserveWeb();
+cleanDist();
 
 export default defineConfig({
   entry: {
-    index: "src/index.ts",
-    "cli/index": "src/cli/index.ts",
+    index: "src/headless/agent.ts",
+    worker: "src/headless/worker.ts",
   },
   format: "esm",
   target: "node20",
   platform: "node",
   splitting: true,
   clean: false,
-  dts: false,
+  dts: true,
   sourcemap: false,
   outDir: "dist",
   external,
